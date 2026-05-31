@@ -5,22 +5,80 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+@theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-fredoka: var(--font-fredoka);
+
+  /* base */
+  --color-background: #f6ead4;
+  --color-foreground: #3e342a;
+
+  --color-card: #fffaef;
+  --color-card-foreground: #3e342a;
+
+  --color-popover: #fffaef;
+  --color-popover-foreground: #3e342a;
+
+  /* primary — terracotta */
+  --color-primary: #d2724e;
+  --color-primary-foreground: #fffaef;
+
+  /* secondary — kraft */
+  --color-secondary: #ead9b6;
+  --color-secondary-foreground: #3e342a;
+
+  --color-muted: #ead9b6;
+  --color-muted-foreground: #92836c;
+
+  /* accent — mustard */
+  --color-accent: #e0a23a;
+  --color-accent-foreground: #3e342a;
+
+  /* stamp red */
+  --color-destructive: #c0543f;
+  --color-destructive-foreground: #fffaef;
+
+  --color-border: #d8c49a;
+  --color-input: #d8c49a;
+  --color-ring: #d2724e;
+
+  /* named extras */
+  --color-terra: #d2724e;
+  --color-mustard: #e0a23a;
+  --color-sage: #8c9e76;
+  --color-kraft: #ead9b6;
+
+  /* effects */
+  --color-shadow-hard: 0 4px 0 rgba(62, 52, 42, 0.85);
+  --color-shadow-soft: 0 10px 24px rgba(120, 82, 42, 0.16);
+  --color-radius: 0.9rem;
 }
 
+/* Override values for dark mode */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-background: #f6ead4;
+    --color-foreground: #3e342a;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-fredoka), sans-serif;
+}
+
+.primary-button {
+  @apply border-3 p-5 rounded-3xl uppercase w-full shadow-[4px_4px_0px] text-2xl font-bold;
+}
+.secondary-button {
+  @apply border-3 p-3 rounded-3xl uppercase w-full text-2xl font-bold;
+}
+.circle-button {
+  @apply border-3 w-10 h-10 rounded-full font-bold shadow-[4px_4px_0px] items-center justify-center flex;
+}
+
+.profile-circle {
+  @apply border-3 w-10 h-10 rounded-full font-bold items-center justify-center flex;
 }

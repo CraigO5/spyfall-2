@@ -75,10 +75,92 @@ body {
 .secondary-button {
   @apply border-3 p-3 rounded-3xl uppercase w-full text-2xl font-bold;
 }
+.card {
+  @apply border-3 p-5 rounded-3xl w-full shadow-[4px_4px_0px];
+}
 .circle-button {
   @apply border-3 w-10 h-10 rounded-full font-bold shadow-[4px_4px_0px] items-center justify-center flex;
 }
 
 .profile-circle {
   @apply border-3 w-10 h-10 rounded-full font-bold items-center justify-center flex;
+}
+
+/* ---------- Global interactions ---------- */
+/* Applied by design-system class, so every button gets it for free.
+   Scoped to button.primary-button so the static .primary-button cards
+   (lobby code container) aren't treated as pressable. */
+
+button,
+.circle-button {
+  cursor: pointer;
+  transition:
+    transform 130ms ease,
+    box-shadow 130ms ease,
+    opacity 150ms ease;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Chunky shadowed buttons: lift on hover, press into their hard shadow on click. */
+  button.primary-button:not(:disabled):hover,
+  .circle-button:hover {
+    transform: translate(-2px, -2px);
+  }
+  button.primary-button:not(:disabled):active,
+  .circle-button:active {
+    transform: translate(4px, 4px);
+    box-shadow: none;
+  }
+
+  /* Shadowless buttons: simple squish. */
+  button.secondary-button:not(:disabled):active {
+    transform: scale(0.95);
+  }
+}
+
+/* ---------- Reusable entrance animations ---------- */
+
+@keyframes fx-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fx-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes fx-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.fx-fade-in {
+  animation: fx-fade-in 160ms ease-out;
+}
+.fx-pop-in {
+  animation: fx-pop-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fx-float {
+    animation: fx-float 6s ease-in-out infinite;
+  }
 }

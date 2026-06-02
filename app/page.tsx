@@ -2,35 +2,39 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import Markdown from "react-markdown";
-import ProfileCircle from "./components/ProfileCircle";
 import HelpModal from "./components/HelpModal";
 import ProfileModal from "./components/ProfileModal";
+import CaseFile from "./components/CaseFile";
+import { HelpIcon } from "./components/Icons";
+import Link from "next/link";
+import { randomCode } from "./config";
+import { useName } from "./contexts/NameContext";
 
 export default function Home() {
   const router = useRouter();
-  const [name, setName] = useState("Craig");
+  const { name } = useName();
   const [showHelp, setShowHelp] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
   return (
     <div className="flex flex-col items-center gap-4 px-8 py-5 w-full max-w-3xl mx-auto">
       <div className="flex justify-between w-full">
-        <h1 className="font-bold">spyfall.</h1>
+        <Link href="/">
+          <h1 className="font-bold">spyfall.</h1>
+        </Link>
         <div
           className="circle-button bg-white"
-          onClick={() => {
-            setShowHelp(true);
-            console.log("Open Modal");
-          }}
+          onClick={() => setShowHelp(true)}
         >
-          ?
+          <HelpIcon />
         </div>
       </div>
+      <CaseFile className="w-80 h-auto fx-float" />
+
       <h2 className="text-5xl text-center font-semibold">
         One of you is lying...
       </h2>
-      <p className="text-gray">
+      <p className="text-muted-foreground text-center">
         Everyone knows the <span className="font-bold">location</span>, except
         for the <span className="font-bold">spy</span>. Ask, lie, and deduce
         your way to victory.{" "}
@@ -38,7 +42,7 @@ export default function Home() {
 
       <div className="flex flex-col gap-3 w-full ">
         <button
-          onClick={() => router.push("/create")}
+          onClick={() => router.push(`${randomCode()}`)}
           className="primary-button bg-primary"
         >
           Create Game

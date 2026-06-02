@@ -1,5 +1,7 @@
 export const MAX_NAME_LENGTH = 20;
 
+export const CODE_LENGTH = 5;
+
 export const GAME_DESCRIPTION = `
 ## How to Play
 
@@ -31,3 +33,15 @@ Beach • Airport • Hospital • Movie Theater • Space Station • Casino �
 
 Think carefully, ask clever questions, and trust no one.
 `;
+
+const CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+export function randomCode(length = CODE_LENGTH) {
+  let code = "";
+  for (let i = 0; i < length; i++) {
+    const randomNumber = Math.floor(Math.random() * CODE_CHARS.length);
+    code += CODE_CHARS[randomNumber];
+  }
+
+  return code;
+}

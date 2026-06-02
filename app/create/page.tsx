@@ -2,6 +2,9 @@
 import { useState } from "react";
 import PlayerList from "../components/PlayerList";
 import LobbySettings from "../components/LobbySettings";
+import LobbyCode from "../components/LobbyCode";
+import { SettingsIcon, HelpIcon } from "../components/Icons";
+import Link from "next/link";
 
 export default function Create() {
   const [code, setCode] = useState("ABCDE");
@@ -10,42 +13,28 @@ export default function Create() {
   return (
     <div className="flex flex-col items-center gap-4 px-8 py-5 w-full max-w-3xl mx-auto">
       <div className="flex justify-between w-full">
-        <h1 className="font-bold">spyfall.</h1>
+        <Link href="/">
+          <h1 className="font-bold">spyfall.</h1>
+        </Link>
         <div className="flex gap-1">
           <div
             className="circle-button bg-white"
             onClick={() => setShowLobbySettings(true)}
           >
-            S
+            <SettingsIcon />
           </div>
-          <div className="circle-button bg-white">?</div>
+          <div className="circle-button bg-white">
+            <HelpIcon />
+          </div>
         </div>
       </div>
 
-      <div className="primary-button bg-secondary items-center flex flex-col">
-        <label htmlFor="code">Lobby Code</label>
-        <div className="flex">
-          {code.split("").map((char, i) => (
-            <div
-              key={i}
-              className="p-3 bg-white mx-1 my-3 rounded-2xl border-3"
-            >
-              {char}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2 w-full">
-          <button className="primary-button bg-white">Copy</button>
-          <button className="primary-button bg-accent">Share</button>
-        </div>
-      </div>
+      <LobbyCode code={code} />
 
       <PlayerList />
       {showLobbySettings && (
         <LobbySettings onClose={() => setShowLobbySettings(false)} />
       )}
-      <button className="primary-button bg-primary">Start Game</button>
     </div>
   );
 }

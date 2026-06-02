@@ -1,35 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import type { LobbyPlayer } from "../types/lobby";
 
-interface Player {
-  name: string;
-  status: "ready" | "joining";
-}
-
-export default function PlayerList() {
-  const [name, setName] = useState("Craig");
-  const [status, setStatus] = useState("ready");
-  const [players, setPlayers] = useState([
-    { name: "Joe", status: "joining" },
-    { name: "Jim", status: "ready" },
-    { name: "Bob", status: "joining" },
-  ] as Player[]);
-
-  console.log("Modal start");
-
+export default function PlayerList({ players }: { players: LobbyPlayer[] }) {
   return (
-    <div className="w-full">
-      <div className="flex justify-between ">
+    <div className="w-full flex flex-col gap-2">
+      <div className="flex justify-between">
         <label htmlFor="players" className="font-bold">
           Players
         </label>
-
         <p>{players.length}/100</p>
       </div>
+
       <div className="flex flex-col gap-3 w-full">
-        {players.map((player, i) => {
-          return (
+        {players.length === 0 ? (
+          <p className="text-muted-foreground italic p-2">Loading…</p>
+        ) : (
+          players.map((player, i) => (
             <div
               key={i}
               className="flex items-center gap-3 font-semibold justify-between p-2"
@@ -40,19 +27,9 @@ export default function PlayerList() {
                 </p>
                 <p>{player.name}</p>
               </div>
-
-              <p>{player.status}</p>
             </div>
-          );
-        })}
-        <div className="flex items-center gap-3 font-semibold justify-between border-3 rounded-2xl p-2 bg-white">
-          <div className="flex items-center gap-3">
-            <p className="profile-circle bg-terra">{name.substring(0, 1)}</p>
-            <p>{name} (You)</p>
-          </div>
-
-          <p>{status}</p>
-        </div>
+          ))
+        )}
       </div>
     </div>
   );

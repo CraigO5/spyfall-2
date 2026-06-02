@@ -14,7 +14,7 @@ export default function Home() {
   const [showProfile, setShowProfile] = useState(false);
 
   return (
-    <div className="flex flex-col items-center gap-4 px-8 py-5 max-w-xl mx-auto">
+    <div className="flex flex-col items-center gap-4 px-8 py-5 w-full max-w-3xl mx-auto">
       <div className="flex justify-between w-full">
         <h1 className="font-bold">spyfall.</h1>
         <div

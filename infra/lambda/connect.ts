@@ -12,13 +12,14 @@ export const handler = async (event: any) => {
   //   Client connects with wss://…/prod?code=ABCDE query string at $connect
   const lobbyCode = event.queryStringParameters?.code; // reads the lobby code from the url
   const name = event.queryStringParameters?.name ?? "Agent"; // Obtain name from url
+  const icon = event.queryStringParameters?.icon ?? ""; // Player's chosen icon
   if (!lobbyCode) return { statusCode: 400 }; // Reject connections with no lobby
 
   await ddb.send(
     // Insert/overwrite an item writing a {connectionId} into table TABLE_NAME
     new PutCommand({
       TableName: process.env.TABLE_NAME,
-      Item: { connectionId, lobbyCode, name }, // Store connection id, name, and lobby code together
+      Item: { connectionId, lobbyCode, name, icon }, // id, name, icon, lobby code
     }),
   );
 

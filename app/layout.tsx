@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Fredoka } from "next/font/google";
+import { Geist, Geist_Mono, Fredoka, Courier_Prime, Nunito } from "next/font/google";
 import "./globals.css";
 import { NameProvider } from "./contexts/NameContext";
 
@@ -19,6 +19,18 @@ const fredoka = Fredoka({
   weight: ["400", "500", "600", "700"],
 });
 
+const courierPrime = Courier_Prime({
+  variable: "--font-courier-prime",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
+const nunito = Nunito({
+  variable: "--font-nunito",
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+});
+
 export const metadata: Metadata = {
   title: "Spyfall Mega",
   description: "Online Spyfall with a couple twists.",
@@ -30,7 +42,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${fredoka.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${fredoka.variable} ${courierPrime.variable} ${nunito.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">
         <NameProvider>{children}</NameProvider>
       </body>

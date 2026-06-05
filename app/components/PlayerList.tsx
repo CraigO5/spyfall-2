@@ -1,6 +1,7 @@
 "use client";
 
 import type { LobbyPlayer } from "../types/lobby";
+import Avatar from "./Avatar";
 
 export default function PlayerList({ players }: { players: LobbyPlayer[] }) {
   return (
@@ -22,9 +23,7 @@ export default function PlayerList({ players }: { players: LobbyPlayer[] }) {
               className="flex items-center gap-3 font-semibold justify-between p-2"
             >
               <div className="flex items-center gap-3">
-                <p className="profile-circle bg-terra">
-                  {player.name.substring(0, 1)}
-                </p>
+                <Avatar name={player.name} icon={player.icon} size={40} />
                 <p>{player.name}</p>
               </div>
             </div>

@@ -1,123 +1,216 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { LOCATIONS, GAME_DURATION_SECONDS } from "../data/locations";
+import { useState } from "react";
+import {
+  LOCATIONS,
+  GAME_DURATION_SECONDS,
+  type GameLocation,
+} from "../data/locations";
 import type { LobbyPlayer } from "../types/lobby";
+import { useName } from "../contexts/NameContext";
+import Avatar from "./Avatar";
+import Stamp from "./Stamp";
+import RoundTimer from "./RoundTimer";
 
-// Tapping a name/location cycles through these states.
 type Mark = "none" | "suspect" | "clear";
-
 const nextMark: Record<Mark, Mark> = {
   none: "suspect",
   suspect: "clear",
   clear: "none",
 };
 
-function markClasses(mark: Mark) {
-  if (mark === "suspect")
-    return "bg-destructive/15 border-destructive text-destructive line-through";
-  if (mark === "clear") return "bg-sage/20 border-sage text-foreground";
-  return "bg-white border-foreground/20";
+// Zip-style chip states.
+function suspectChip(mark: Mark) {
+  if (mark === "suspect") return "bg-[#F7E0D8] border-destructive";
+  if (mark === "clear") return "bg-sage/15 border-sage";
+  return "bg-card border-foreground";
 }
-
-function useCountdown(seconds: number) {
-  const [remaining, setRemaining] = useState(seconds);
-  useEffect(() => {
-    const id = setInterval(
-      () => setRemaining((s) => Math.max(0, s - 1)),
-      1000,
-    );
-    return () => clearInterval(id);
-  }, []);
-  const mm = Math.floor(remaining / 60);
-  const ss = String(remaining % 60).padStart(2, "0");
-  return { remaining, label: `${mm}:${ss}` };
+function suspectText(mark: Mark) {
+  if (mark === "suspect") return "text-destructive";
+  if (mark === "clear") return "text-sage line-through";
+  return "";
+}
+function locationChip(mark: Mark) {
+  if (mark === "suspect")
+    return "bg-[#F7E0D8] border-destructive text-destructive shadow-hard-sm";
+  if (mark === "clear") return "bg-sage/15 border-sage text-sage opacity-85";
+  return "bg-card border-foreground shadow-hard-sm";
 }
 
 export default function GameScreen({
   players,
   location,
   role,
+  onTimeUp,
+  onCallVote,
+  isSpy,
+  onGuess,
+  locations = LOCATIONS,
+  firstPlayer,
 }: {
   players: LobbyPlayer[];
   location?: string;
   role?: string;
+  onTimeUp?: () => void;
+  onCallVote?: () => void;
+  isSpy?: boolean;
+  onGuess?: () => void;
+  locations?: GameLocation[];
+  firstPlayer: string;
 }) {
-  const { remaining, label } = useCountdown(GAME_DURATION_SECONDS);
+  const { name: myName } = useName();
   const [marks, setMarks] = useState<Record<string, Mark>>({});
+  const [revealed, setRevealed] = useState(false);
 
   const cycle = (key: string) =>
     setMarks((m) => ({ ...m, [key]: nextMark[m[key] ?? "none"] }));
   const markOf = (key: string): Mark => marks[key] ?? "none";
 
+  const ruledOut = locations.filter(
+    (l) => markOf(`loc:${l.name}`) === "clear",
+  ).length;
+
   return (
-    <div className="w-full flex flex-col gap-4">
-      {/* Your secret info + timer */}
-      <div className="card bg-secondary flex flex-col items-center gap-3 text-center">
-        <div>
-          <p className="uppercase text-xs tracking-widest font-bold text-muted-foreground">
-            Your location
-          </p>
-          <p className="text-2xl font-bold">{location ?? "Loading…"}</p>
+    <div className="w-full flex flex-col gap-5 fx-pop-in">
+      {/* Who asks first */}
+      {firstPlayer && (
+        <div className="self-center flex items-center gap-2 bg-card chunky border-foreground rounded-full px-4 py-1.5 shadow-hard-sm font-body font-bold text-sm">
+          <span>👉</span>
+          <span className="font-semibold">{firstPlayer}</span>
+          <span className="text-muted-foreground">asks first</span>
         </div>
-        <div>
-          <p className="uppercase text-xs tracking-widest font-bold text-muted-foreground">
-            Your role
-          </p>
-          <p className="text-2xl font-bold">{role ?? "Loading…"}</p>
-        </div>
-        <p
-          className={`text-4xl font-bold tabular-nums ${
-            remaining <= 30 ? "text-destructive" : ""
+      )}
+
+      {/* Flip-to-reveal dossier */}
+      <div className="[perspective:1200px]">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setRevealed((r) => !r)}
+          onKeyDown={(e) => e.key === "Enter" && setRevealed((r) => !r)}
+          aria-label={revealed ? "Hide your dossier" : "Reveal your dossier"}
+          className={`relative cursor-pointer transition-transform duration-500 [transform-style:preserve-3d] ${
+            revealed ? "[transform:rotateY(180deg)]" : ""
           }`}
         >
-          {label}
+          <div className="card bg-secondary [backface-visibility:hidden] flex flex-col items-center justify-center gap-2 py-7 text-center">
+            <span className="text-3xl">🕵️</span>
+            <Stamp rotate={-6} className="text-[9px]">
+              Classified
+            </Stamp>
+            <p className="font-type font-bold text-xs tracking-[0.2em] text-muted-foreground">
+              TAP TO REVEAL
+            </p>
+          </div>
+
+          <div className="absolute inset-0 card bg-secondary [backface-visibility:hidden] [transform:rotateY(180deg)] grid grid-cols-2 items-center">
+            <div className="px-2 text-center">
+              <p className="font-type font-bold uppercase text-[10px] tracking-widest text-muted-foreground">
+                Your Location
+              </p>
+              <p className="text-2xl font-semibold mt-1">
+                {location ?? "Loading…"}
+              </p>
+            </div>
+            <div className="px-2 text-center border-l-2 border-dashed border-foreground/25">
+              <p className="font-type font-bold uppercase text-[10px] tracking-widest text-muted-foreground">
+                Your Role
+              </p>
+              <p className="text-2xl font-semibold mt-1">
+                {role ?? "Loading…"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Timer — isolated so its per-second tick doesn't re-render the screen */}
+      <RoundTimer seconds={GAME_DURATION_SECONDS} onTimeUp={onTimeUp} />
+
+      {/* Suspects — zip grid chips */}
+      <div>
+        <div className="flex justify-between items-baseline">
+          <label className="font-bold">Suspects</label>
+          <span className="font-type uppercase text-[11px] tracking-widest text-muted-foreground">
+            Tap to accuse
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5 mt-2">
+          {players.map((p) => {
+            const key = `player:${p.name}`;
+            const mark = markOf(key);
+            return (
+              <button
+                key={key}
+                onClick={() => cycle(key)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-[14px] chunky shadow-hard-sm transition active:translate-y-0.5 active:shadow-none ${suspectChip(mark)}`}
+              >
+                <Avatar
+                  name={p.name}
+                  icon={p.icon}
+                  isYou={p.name === myName}
+                  size={30}
+                />
+                <span
+                  className={`text-[15px] font-medium flex-1 text-left ${suspectText(mark)}`}
+                >
+                  {p.name}
+                </span>
+                {mark === "suspect" && (
+                  <Stamp rotate={-6} className="text-[7.5px]">
+                    ?
+                  </Stamp>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Locations — zip grid chips */}
+      <div>
+        <div className="flex justify-between items-baseline">
+          <label className="font-bold">Locations</label>
+          <span className="font-type text-[11px] text-sage">
+            {ruledOut} ruled out
+          </span>
+        </div>
+        <p className="font-body text-xs italic text-muted-foreground mt-0.5">
+          Tap once to flag{" "}
+          <span className="text-destructive font-semibold not-italic">
+            suspicious
+          </span>{" "}
+          — twice to mark{" "}
+          <span className="text-sage font-semibold not-italic">clear</span>.
         </p>
-      </div>
-
-      {/* Players */}
-      <div className="w-full">
-        <label className="font-bold">Players</label>
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          {players.map((player) => {
-            const key = `player:${player.name}`;
-            return (
-              <button
-                key={key}
-                onClick={() => cycle(key)}
-                className={`border-2 rounded-xl p-2 font-semibold transition ${markClasses(markOf(key))}`}
-              >
-                {player.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Locations */}
-      <div className="w-full">
-        <label className="font-bold">Locations</label>
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          {LOCATIONS.map((loc) => {
+        <div className="grid grid-cols-2 gap-[9px] mt-2">
+          {locations.map((loc) => {
             const key = `loc:${loc.name}`;
+            const mark = markOf(key);
+            const struck = mark === "clear";
             return (
               <button
                 key={key}
                 onClick={() => cycle(key)}
-                className={`border-2 rounded-xl p-2 text-sm font-semibold transition ${markClasses(markOf(key))}`}
+                className={`flex items-center justify-center gap-1.5 px-2 py-[11px] rounded-[13px] chunky text-sm font-medium transition active:translate-y-0.5 ${locationChip(mark)}`}
               >
-                {loc.name}
+                <span className="text-base leading-none">{loc.icon}</span>
+                <span className={struck ? "line-through" : ""}>{loc.name}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground text-center italic px-2">
-        Hint: tap a name or location repeatedly to mark it{" "}
-        <span className="text-destructive font-bold">suspicious</span> or{" "}
-        <span className="text-sage font-bold">clear</span>.
-      </p>
+      {/* Skip the timer straight to the accusation */}
+      {onCallVote && (
+        <button
+          onClick={onCallVote}
+          className="w-full py-3.5 rounded-[17px] chunky border-foreground bg-primary text-white font-semibold tracking-wide shadow-hard transition active:translate-y-1 active:shadow-none"
+        >
+          Call the vote →
+        </button>
+      )}
     </div>
   );
 }

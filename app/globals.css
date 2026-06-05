@@ -49,6 +49,14 @@
   --color-sage: #8c9e76;
   --color-kraft: #ead9b6;
 
+  /* Cozy Caper fonts → font-type (typewriter), font-body */
+  --font-type: var(--font-courier-prime), "Courier New", monospace;
+  --font-body: var(--font-nunito), system-ui, sans-serif;
+
+  /* signature straight-down hard shadow */
+  --shadow-hard: 0 4px 0 rgba(62, 52, 42, 0.85);
+  --shadow-hard-sm: 0 3px 0 rgba(62, 52, 42, 0.85);
+
   /* effects */
   --color-shadow-hard: 0 4px 0 rgba(62, 52, 42, 0.85);
   --color-shadow-soft: 0 10px 24px rgba(120, 82, 42, 0.16);
@@ -64,7 +72,15 @@
 }
 
 body {
-  background: var(--color-background);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 27px,
+      rgba(120, 90, 40, 0.045) 27px,
+      rgba(120, 90, 40, 0.045) 28px
+    ),
+    var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-fredoka), sans-serif;
 }
@@ -163,4 +179,113 @@ button:disabled {
   .fx-float {
     animation: fx-float 6s ease-in-out infinite;
   }
+}
+
+/* ---------- Cozy Caper helpers ---------- */
+
+/* 2.5px chunky border width (pair with a border-color utility) */
+@utility chunky {
+  border-width: 2.5px;
+}
+
+/* faint typewriter ruling overlay for full screens */
+@utility ruling {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 27px,
+      rgba(120, 90, 40, 0.045) 27px,
+      rgba(120, 90, 40, 0.045) 28px
+    ),
+    var(--color-background);
+}
+
+/* ---------- Spy reveal ("Case Closed") ---------- */
+@keyframes rv-slam {
+  0% {
+    opacity: 0;
+    transform: rotate(-22deg) scale(3);
+  }
+  55% {
+    opacity: 1;
+    transform: rotate(-7deg) scale(0.86);
+  }
+  72% {
+    transform: rotate(-10deg) scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-9deg) scale(1);
+  }
+}
+@keyframes rv-name {
+  0% {
+    opacity: 0;
+    transform: scale(1.6);
+    filter: blur(4px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.96);
+    filter: blur(0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes rv-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes rv-fall {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) rotate(0);
+  }
+  8% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(680px) rotate(var(--r, 540deg));
+  }
+}
+@keyframes rv-scan {
+  0% {
+    top: -30%;
+  }
+  100% {
+    top: 130%;
+  }
+}
+@keyframes rv-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+/* pulsing dot used on the live timers */
+@keyframes pulse-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(210, 114, 78, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(210, 114, 78, 0.08);
+  }
+}
+.pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
 }

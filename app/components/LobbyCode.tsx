@@ -1,9 +1,14 @@
 "use client";
 import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { CopyIcon, ShareIcon, CheckIcon } from "./Icons";
 
 export default function LobbyCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+
+  const url =
+    typeof window !== "undefined" ? `${window.location.origin}/${code}` : "";
 
   const flashCopied = () => {
     setCopied(true);
@@ -16,26 +21,6 @@ export default function LobbyCode({ code }: { code: string }) {
       flashCopied();
     } catch {
       // clipboard unavailable (e.g. insecure context) — ignore
-    }
-  };
-
-  const handleShare = async () => {
-    const url = `${window.location.origin}/${code}`;
-    const shareData = {
-      title: "Spyfall",
-      text: `Join my Spyfall lobby — code ${code}`,
-      url,
-    };
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        // No Web Share API (most desktops) — fall back to copying the link.
-        await navigator.clipboard.writeText(url);
-        flashCopied();
-      }
-    } catch {
-      // user dismissed the share sheet — ignore
     }
   };
 
@@ -71,13 +56,25 @@ export default function LobbyCode({ code }: { code: string }) {
           {copied ? "Copied" : "Copy"}
         </button>
         <button
-          onClick={handleShare}
+          onClick={() => setShowQR((s) => !s)}
           className="secondary-button bg-accent flex items-center justify-center gap-2"
         >
           <ShareIcon className="w-6 h-6" />
-          Share
+          {showQR ? "Hide QR" : "Share"}
         </button>
       </div>
+
+      {showQR && (
+        <div className="flex flex-col items-center gap-2 bg-white border-3 rounded-2xl p-4 w-full fx-pop-in">
+          <QRCodeSVG value={url} size={168} bgColor="#ffffff" fgColor="#3e342a" />
+          <p className="text-xs text-muted-foreground break-all text-center">
+            {url}
+          </p>
+          <p className="text-xs font-bold text-muted-foreground">
+            Scan to join the lobby
+          </p>
+        </div>
+      )}
     </div>
   );
 }

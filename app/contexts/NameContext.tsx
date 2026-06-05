@@ -8,34 +8,45 @@ import {
   type ReactNode,
 } from "react";
 
-const STORAGE_KEY = "spyfall:name";
+const NAME_KEY = "spyfall:name";
+const ICON_KEY = "spyfall:icon";
 
 interface NameContextValue {
   name: string;
   setName: (name: string) => void;
+  icon: string;
+  setIcon: (icon: string) => void;
 }
 
 const NameContext = createContext<NameContextValue>({
   name: "",
   setName: () => {},
+  icon: "",
+  setIcon: () => {},
 });
 
 export function NameProvider({ children }: { children: ReactNode }) {
-  // Empty until we've read localStorage on the client — keeps the server and
-  // first client render identical (no hydration mismatch).
+  // Empty until we've read localStorage on the client (no hydration mismatch).
   const [name, setNameState] = useState("");
+  const [icon, setIconState] = useState("");
 
   useEffect(() => {
-    setNameState(localStorage.getItem(STORAGE_KEY) || "Agent");
+    setNameState(localStorage.getItem(NAME_KEY) || "Agent");
+    setIconState(localStorage.getItem(ICON_KEY) || "");
   }, []);
 
   const setName = (value: string) => {
     setNameState(value);
-    localStorage.setItem(STORAGE_KEY, value);
+    localStorage.setItem(NAME_KEY, value);
+  };
+
+  const setIcon = (value: string) => {
+    setIconState(value);
+    localStorage.setItem(ICON_KEY, value);
   };
 
   return (
-    <NameContext.Provider value={{ name, setName }}>
+    <NameContext.Provider value={{ name, setName, icon, setIcon }}>
       {children}
     </NameContext.Provider>
   );

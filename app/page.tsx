@@ -9,10 +9,11 @@ import { HelpIcon } from "./components/Icons";
 import Link from "next/link";
 import { randomCode } from "./config";
 import { useName } from "./contexts/NameContext";
+import Avatar from "./components/Avatar";
 
 export default function Home() {
   const router = useRouter();
-  const { name } = useName();
+  const { name, icon } = useName();
   const [showHelp, setShowHelp] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -61,7 +62,7 @@ export default function Home() {
             Welcome, <span className="font-bold text-terra"> {name}</span>
           </p>
           <div className="flex gap-2 items-center">
-            <p className="profile-circle bg-terra">{name.substring(0, 1)}</p>
+            <Avatar name={name} icon={icon || undefined} isYou size={44} />
           </div>
         </div>
         <button className="underline" onClick={() => setShowProfile(true)}>

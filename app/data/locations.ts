@@ -5,12 +5,14 @@ export const GAME_DURATION_SECONDS = 8 * 60; // classic Spyfall round length
 
 export interface GameLocation {
   name: string;
+  icon: string;
   roles: string[];
 }
 
 export const LOCATIONS: GameLocation[] = [
   {
     name: "Airplane",
+    icon: "✈️",
     roles: [
       "First Class Passenger",
       "Air Marshal",
@@ -23,6 +25,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Bank",
+    icon: "🏦",
     roles: [
       "Armored Car Driver",
       "Manager",
@@ -35,6 +38,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Beach",
+    icon: "🏖️",
     roles: [
       "Beach Waitress",
       "Kite Surfer",
@@ -47,6 +51,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Cathedral",
+    icon: "⛪",
     roles: [
       "Priest",
       "Beggar",
@@ -59,6 +64,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Circus Tent",
+    icon: "🎪",
     roles: [
       "Acrobat",
       "Animal Trainer",
@@ -71,6 +77,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Corporate Party",
+    icon: "🎉",
     roles: [
       "Entertainer",
       "Manager",
@@ -83,6 +90,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Crusader Army",
+    icon: "⚔️",
     roles: [
       "Monk",
       "Imprisoned Saracen",
@@ -95,6 +103,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Casino",
+    icon: "🎰",
     roles: [
       "Bartender",
       "Head Security Guard",
@@ -107,6 +116,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Day Spa",
+    icon: "💆",
     roles: [
       "Stylist",
       "Masseuse",
@@ -119,6 +129,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Embassy",
+    icon: "🏛️",
     roles: [
       "Security Guard",
       "Secretary",
@@ -131,6 +142,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Hospital",
+    icon: "🏥",
     roles: [
       "Nurse",
       "Doctor",
@@ -143,6 +155,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Hotel",
+    icon: "🏨",
     roles: [
       "Doorman",
       "Security Guard",
@@ -155,6 +168,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Military Base",
+    icon: "🪖",
     roles: [
       "Deserter",
       "Colonel",
@@ -167,6 +181,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Movie Studio",
+    icon: "🎬",
     roles: [
       "Stuntman",
       "Sound Engineer",
@@ -179,6 +194,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Ocean Liner",
+    icon: "🛳️",
     roles: [
       "Rich Passenger",
       "Cook",
@@ -191,6 +207,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Passenger Train",
+    icon: "🚆",
     roles: [
       "Mechanic",
       "Border Patrol",
@@ -203,6 +220,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Pirate Ship",
+    icon: "🏴‍☠️",
     roles: [
       "Cook",
       "Sailor",
@@ -215,6 +233,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Polar Station",
+    icon: "❄️",
     roles: [
       "Medic",
       "Geologist",
@@ -227,6 +246,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Police Station",
+    icon: "🚓",
     roles: [
       "Detective",
       "Lawyer",
@@ -239,6 +259,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Restaurant",
+    icon: "🍽️",
     roles: [
       "Musician",
       "Customer",
@@ -251,6 +272,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "School",
+    icon: "🏫",
     roles: [
       "Gym Teacher",
       "Student",
@@ -263,6 +285,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Service Station",
+    icon: "⛽",
     roles: [
       "Manager",
       "Tire Specialist",
@@ -275,6 +298,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Space Station",
+    icon: "🛰️",
     roles: [
       "Engineer",
       "Alien",
@@ -287,6 +311,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Submarine",
+    icon: "🤿",
     roles: [
       "Cook",
       "Commander",
@@ -299,6 +324,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Supermarket",
+    icon: "🛒",
     roles: [
       "Customer",
       "Cashier",
@@ -311,6 +337,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "Theater",
+    icon: "🎭",
     roles: [
       "Coat Check Lady",
       "Prompter",
@@ -323,6 +350,7 @@ export const LOCATIONS: GameLocation[] = [
   },
   {
     name: "University",
+    icon: "🎓",
     roles: [
       "Graduate Student",
       "Professor",

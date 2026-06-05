@@ -8,7 +8,14 @@ import {
   ApiGatewayManagementApiClient,
   PostToConnectionCommand,
 } from "@aws-sdk/client-apigatewaymanagementapi";
-import { broadcastPlayers } from "./lobby";
+import {
+  broadcastPlayers,
+  dealStart,
+  broadcast,
+  castVote,
+  resolveVotes,
+  resolveSpyGuess,
+} from "./lobby";
 
 // Starts a new DynamoDB client much like supabase and DynamoDBDocumentClient wraps using JS objects
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient());
@@ -36,15 +43,45 @@ export const handler = async (event: any) => {
   const lobbyCode = sender.Item?.lobbyCode;
   if (!lobbyCode) return { statusCode: 400 };
 
-  // A just-connected client asks for the roster once its socket is open.
-  // (We can't push to a connection during its own $connect, so the newcomer
-  // requests the player list here instead.)
   let incoming: any;
   try {
     incoming = JSON.parse(message);
   } catch {}
+
+  // A just-connected client asks for the current roster (it couldn't be pushed
+  // to during its own $connect).
   if (incoming?.type === "sync") {
     await broadcastPlayers(lobbyCode);
+    return { statusCode: 200 };
+  }
+
+  // Player started the round → deal each player their own private secret.
+  if (incoming?.type === "start") {
+    await dealStart(lobbyCode, incoming.packId);
+    return { statusCode: 200 };
+  }
+
+  // Player skipped to the vote/timer ran out
+  if (incoming?.type === "voting") {
+    await broadcast(lobbyCode, { type: "voting" });
+    return { statusCode: 200 };
+  }
+
+  // Player sends vote in (auto-resolves once everyone has voted)
+  if (incoming?.type === "playerVote") {
+    await castVote(lobbyCode, senderId, incoming.target);
+    return { statusCode: 200 };
+  }
+
+  // Someone hit "Lock in" → force the vote to resolve now.
+  if (incoming?.type === "lockVotes") {
+    await resolveVotes(lobbyCode);
+    return { statusCode: 200 };
+  }
+
+  // The caught spy guessed a location → decide the winner.
+  if (incoming?.type === "spyGuess") {
+    await resolveSpyGuess(lobbyCode, incoming.guess);
     return { statusCode: 200 };
   }
 

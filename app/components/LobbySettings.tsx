@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import type { GameSettings } from "../types/lobby";
 
 const GAME_OPTIONS = [
   {
@@ -22,10 +22,17 @@ const GAME_OPTIONS = [
   },
 ];
 
-export default function LobbySettings({ onClose }: { onClose: () => void }) {
-  const [enabled, setEnabled] = useState<Record<string, boolean>>({});
-  const toggle = (id: string) =>
-    setEnabled((prev) => ({ ...prev, [id]: !prev[id] }));
+export default function LobbySettings({
+  settings,
+  onToggle,
+  onClose,
+}: {
+  settings: GameSettings;
+  onToggle: (id: keyof GameSettings) => void;
+  onClose: () => void;
+}) {
+  const enabled = settings as Record<string, boolean>;
+  const toggle = (id: string) => onToggle(id as keyof GameSettings);
 
   return (
     <div

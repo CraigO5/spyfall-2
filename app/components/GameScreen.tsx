@@ -47,6 +47,7 @@ export default function GameScreen({
   onGuess,
   locations = LOCATIONS,
   firstPlayer,
+  goal,
 }: {
   players: LobbyPlayer[];
   location?: string;
@@ -57,6 +58,7 @@ export default function GameScreen({
   onGuess?: () => void;
   locations?: GameLocation[];
   firstPlayer: string;
+  goal?: string;
 }) {
   const { name: myName } = useName();
   const [marks, setMarks] = useState<Record<string, Mark>>({});
@@ -78,6 +80,16 @@ export default function GameScreen({
           <span>👉</span>
           <span className="font-semibold">{firstPlayer}</span>
           <span className="text-muted-foreground">asks first</span>
+        </div>
+      )}
+
+      {/* Secret objective — only set for special roles (Joker / Double Agent) */}
+      {goal && (
+        <div className="bg-accent/15 chunky border-accent rounded-2xl px-4 py-2.5 text-center">
+          <p className="font-type text-[10px] tracking-[0.2em] text-accent font-bold">
+            YOUR SECRET GOAL
+          </p>
+          <p className="font-body font-bold text-sm mt-0.5">{goal}</p>
         </div>
       )}
 

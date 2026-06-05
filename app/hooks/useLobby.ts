@@ -4,7 +4,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { LobbyMessage, LobbyPlayer, Round } from "../types/lobby";
+import type {
+  GameSettings,
+  LobbyMessage,
+  LobbyPlayer,
+  RoundResult,
+  Round,
+} from "../types/lobby";
 
 export function useLobby(code: string, name: string, icon: string) {
   const [messages, setMessages] = useState<LobbyMessage[]>([]);
@@ -17,9 +23,11 @@ export function useLobby(code: string, name: string, icon: string) {
   const [caughtSpy, setCaughtSpy] = useState("");
   // The final verdict, decided by the server.
   const [reveal, setReveal] = useState<{
-    outcome: "caught" | "escaped";
+    result: RoundResult;
     spy: string;
+    accused: string | null;
     location: string | null;
+    winners: string[];
   } | null>(null);
   // useRef: survives re-renders without causing them
   const socketRef = useRef<WebSocket | null>(null);
@@ -55,6 +63,10 @@ export function useLobby(code: string, name: string, icon: string) {
             startedAt: msg.startedAt,
             packId: msg.packId ?? "classic",
             firstPlayer: msg.firstPlayer,
+            secretRole: msg.secretRole,
+            goal: msg.goal,
+            allSpy: msg.allSpy,
+            spy: msg.spy,
           });
         } else if (msg.type === "voting") {
           // Advance to the voting screen
@@ -69,9 +81,11 @@ export function useLobby(code: string, name: string, icon: string) {
         } else if (msg.type === "reveal") {
           // Final verdict is in.
           setReveal({
-            outcome: msg.outcome,
-            spy: msg.spy,
+            result: msg.result,
+            spy: msg.spy ?? "",
+            accused: msg.accused ?? null,
             location: msg.location ?? null,
+            winners: msg.winners ?? [],
           });
           setServerPhase("reveal");
         } else {
@@ -89,7 +103,8 @@ export function useLobby(code: string, name: string, icon: string) {
   };
 
   // Host triggers a fresh round; the server deals to everyone.
-  const startRound = (packId?: string) => send({ type: "start", packId });
+  const startRound = (packId?: string, settings?: GameSettings) =>
+    send({ type: "start", packId, settings });
   const resetRound = () => setRound(null);
 
   return {

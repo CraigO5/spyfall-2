@@ -9,6 +9,9 @@ import Link from "next/link";
 export default function Create() {
   const [code, setCode] = useState("ABCDE");
   const [showLobbySettings, setShowLobbySettings] = useState(false);
+  const [settings, setSettings] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) =>
+    setSettings((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
     <div className="flex flex-col items-center gap-4 px-8 py-5 w-full max-w-3xl mx-auto">
@@ -31,9 +34,13 @@ export default function Create() {
 
       <LobbyCode code={code} />
 
-      <PlayerList />
+      <PlayerList players={[]} />
       {showLobbySettings && (
-        <LobbySettings onClose={() => setShowLobbySettings(false)} />
+        <LobbySettings
+          settings={settings}
+          onToggle={(id) => toggle(id)}
+          onClose={() => setShowLobbySettings(false)}
+        />
       )}
     </div>
   );

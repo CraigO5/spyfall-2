@@ -2,64 +2,53 @@
 
 import { useMemo, type CSSProperties } from "react";
 import { identityFor } from "../lib/identity";
+import type { RoundResult } from "../types/lobby";
 
 const PALETTE = ["#D2724E", "#E0A23A", "#8C9E76", "#EFE3CC", "#C0543F", "#E9C39E"];
 
-// Four states: you're the spy or not, crossed with win or loss.
-const COPY = {
-  spyWin: {
-    stamp: "ESCAPED",
-    sub: "YOU WIN",
-    line: "You slipped the net.",
-    meta: () => "Clean getaway — nobody pinned the spy.",
-  },
-  spyLose: {
-    stamp: "BUSTED",
-    sub: "YOU LOSE",
-    line: "Your cover cracked.",
-    meta: () => "The detectives saw right through you.",
-  },
-  detWin: {
-    stamp: "CAUGHT",
-    sub: "YOU WIN",
-    line: "Spy unmasked — nice work, detective.",
-    meta: (spy: string) => `${spy} couldn't keep the cover story straight.`,
-  },
-  detLose: {
-    stamp: "ESCAPED",
-    sub: "YOU LOSE",
-    line: "The spy slipped away…",
-    meta: (spy: string) => `${spy} slipped through your fingers.`,
-  },
+// Headline copy keyed by which side actually won the round.
+const RESULT_COPY: Record<RoundResult, { sub: string; line: string }> = {
+  detectives: { sub: "THE DETECTIVES WIN", line: "Spy unmasked — case closed." },
+  spy: { sub: "THE SPY WINS", line: "The spy slipped away…" },
+  joker: { sub: "THE JOKER WINS", line: "Played you all — voted out on purpose." },
+  allSpy: { sub: "EVERYONE'S A SPY", line: "No innocents tonight. Chaos wins." },
 };
 
 export default function RevealScreen({
-  outcome,
+  result,
+  youWon,
   spyName,
-  isSpy,
+  accused,
   location,
   onPlayAgain,
   onBackToLobby,
 }: {
-  outcome: "caught" | "escaped";
+  result: RoundResult;
+  youWon: boolean;
   spyName: string;
-  isSpy: boolean;
+  accused?: string | null;
   location?: string | null;
   onPlayAgain: () => void;
   onBackToLobby: () => void;
 }) {
-  // "escaped" = the spy won; "caught" = the detectives won.
-  const youWon = isSpy ? outcome === "escaped" : outcome === "caught";
-  const state = isSpy
-    ? youWon
-      ? "spyWin"
-      : "spyLose"
-    : youWon
-      ? "detWin"
-      : "detLose";
-  const copy = COPY[state];
+  const headline = RESULT_COPY[result];
+  const copy = {
+    stamp: youWon ? "YOU WIN" : "YOU LOSE",
+    sub: headline.sub,
+    line: headline.line,
+  };
   const { color, icon } = identityFor(spyName);
   const verdictColor = youWon ? "#8C9E76" : "#C0543F"; // sage green / stamp red
+  const allSpy = result === "allSpy";
+
+  const metaLine =
+    result === "joker"
+      ? `${accused} was the Joker — out on purpose all along.`
+      : allSpy
+        ? "Every last one of you was a spy."
+        : result === "detectives"
+          ? `${spyName} couldn't keep the cover story straight.`
+          : `${spyName} walked away clean.`;
 
   // Confetti whenever *you* won.
   const confetti = useMemo(() => {
@@ -116,7 +105,7 @@ export default function RevealScreen({
         className="font-semibold text-2xl mt-3"
         style={{ animation: "rv-rise .5s ease-out .15s both" }}
       >
-        The spy was
+        {allSpy ? "Everyone was a spy" : "The spy was"}
         <span className="inline-flex ml-1">
           {[0, 1, 2].map((d) => (
             <span
@@ -131,37 +120,52 @@ export default function RevealScreen({
         </span>
       </p>
 
-      {/* mug shot */}
-      <div
-        className="mt-5 bg-card chunky border-foreground rounded-2xl p-3 w-[170px] -rotate-2 shadow-hard"
-        style={{ animation: "rv-rise .5s ease-out .4s both" }}
-      >
+      {/* mug shot — a single spy, unless the whole room was spies */}
+      {allSpy ? (
         <div
-          className="relative aspect-square rounded-lg overflow-hidden border-2 border-foreground flex items-center justify-center"
-          style={{ background: color }}
+          className="mt-5 bg-card chunky border-foreground rounded-2xl px-6 py-7 w-[170px] -rotate-2 shadow-hard flex flex-col items-center"
+          style={{ animation: "rv-rise .5s ease-out .4s both" }}
         >
-          <span className="text-5xl font-bold text-foreground/80">
-            {(spyName.charAt(0) || "?").toUpperCase()}
-          </span>
-          <span className="absolute right-1.5 bottom-1 text-2xl">{icon}</span>
-          <span
-            className="absolute left-0 right-0 h-7 bg-white/25"
-            style={{ animation: "rv-scan 2.2s ease-in-out infinite" }}
-          />
+          <span className="text-5xl">🕵️</span>
+          <p className="font-type text-[9px] tracking-widest text-muted-foreground mt-3">
+            ALL AGENTS COMPROMISED
+          </p>
+          <p className="text-xl font-bold text-foreground leading-tight">
+            Everyone
+          </p>
         </div>
-        <p className="font-type text-[9px] tracking-widest text-muted-foreground mt-2">
-          IDENTITY CONFIRMED
-        </p>
-        <p
-          className="text-xl font-bold text-foreground leading-tight"
-          style={{ animation: "rv-name .6s ease-out .9s both" }}
+      ) : (
+        <div
+          className="mt-5 bg-card chunky border-foreground rounded-2xl p-3 w-[170px] -rotate-2 shadow-hard"
+          style={{ animation: "rv-rise .5s ease-out .4s both" }}
         >
-          {spyName}
-        </p>
-        <p className="font-type text-[9px] text-muted-foreground">
-          ID-4451 · agent of record
-        </p>
-      </div>
+          <div
+            className="relative aspect-square rounded-lg overflow-hidden border-2 border-foreground flex items-center justify-center"
+            style={{ background: color }}
+          >
+            <span className="text-5xl font-bold text-foreground/80">
+              {(spyName.charAt(0) || "?").toUpperCase()}
+            </span>
+            <span className="absolute right-1.5 bottom-1 text-2xl">{icon}</span>
+            <span
+              className="absolute left-0 right-0 h-7 bg-white/25"
+              style={{ animation: "rv-scan 2.2s ease-in-out infinite" }}
+            />
+          </div>
+          <p className="font-type text-[9px] tracking-widest text-muted-foreground mt-2">
+            IDENTITY CONFIRMED
+          </p>
+          <p
+            className="text-xl font-bold text-foreground leading-tight"
+            style={{ animation: "rv-name .6s ease-out .9s both" }}
+          >
+            {spyName}
+          </p>
+          <p className="font-type text-[9px] text-muted-foreground">
+            ID-4451 · agent of record
+          </p>
+        </div>
+      )}
 
       {/* verdict */}
       <div
@@ -194,7 +198,7 @@ export default function RevealScreen({
           {copy.line}
         </p>
         <p className="font-type text-[11px] tracking-wide text-[#C9B89B] mt-1">
-          {copy.meta(spyName)}
+          {metaLine}
         </p>
         {location && (
           <p className="font-type text-[11px] tracking-[0.18em] text-[#C9B89B] mt-2">

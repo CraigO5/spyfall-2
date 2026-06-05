@@ -9,12 +9,14 @@ import VoteScreen from "../components/VoteScreen";
 import SpyGuessScreen from "../components/SpyGuessScreen";
 import SpyGuessWaiting from "../components/SpyGuessWaiting";
 import RevealScreen from "../components/RevealScreen";
+import LobbySettings from "../components/LobbySettings";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { HelpIcon } from "../components/Icons";
+import { HelpIcon, SettingsIcon } from "../components/Icons";
 import { useEffect, useState } from "react";
 import { useLobby } from "../hooks/useLobby";
 import { useName } from "../contexts/NameContext";
+import type { GameSettings } from "../types/lobby";
 import { PACKS, packById } from "../data/packs";
 import { CODE_LENGTH } from "../config";
 const CODE_PATTERN = new RegExp(`^[A-Z0-9]{${CODE_LENGTH}}$`);
@@ -28,7 +30,12 @@ export default function Create() {
   const [isHost, setIsHost] = useState(true);
   const [phase, setPhase] = useState<Phase>("lobby");
   const [packId, setPackId] = useState("classic");
+  const [settings, setSettings] = useState<GameSettings>({});
+  const [showSettings, setShowSettings] = useState(false);
   const { name, icon } = useName();
+
+  const toggleSetting = (id: keyof GameSettings) =>
+    setSettings((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const {
     messages,
@@ -59,6 +66,19 @@ export default function Create() {
   const showChat = phase === "lobby" || phase === "game";
   const isSpy = round?.role === "Spy";
   const pack = packById(round?.packId);
+  const youWon = !!reveal && reveal.winners.includes(name);
+
+  // Only surface the "secret goal" banner for the special innocent roles.
+  // NOT for all-spy rounds — revealing that would spoil the whole gag; an
+  // all-spy player should look exactly like a normal lone spy until the reveal.
+  const special =
+    round?.secretRole === "joker" || round?.secretRole === "doubleAgent";
+  const goal =
+    special && round?.secretRole === "doubleAgent" && round?.spy
+      ? `${round.goal} The spy is ${round.spy}.`
+      : special
+        ? round?.goal
+        : undefined;
 
   return (
     <div className="flex flex-col items-center gap-4 px-8 py-5 w-full max-w-3xl mx-auto">
@@ -67,11 +87,28 @@ export default function Create() {
           <h1 className="font-bold">spyfall.</h1>
         </Link>
         <div className="flex gap-1">
+          {isHost && phase === "lobby" && (
+            <button
+              className="circle-button bg-white"
+              onClick={() => setShowSettings(true)}
+              aria-label="Lobby settings"
+            >
+              <SettingsIcon />
+            </button>
+          )}
           <div className="circle-button bg-white">
             <HelpIcon />
           </div>
         </div>
       </div>
+
+      {showSettings && (
+        <LobbySettings
+          settings={settings}
+          onToggle={toggleSetting}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
 
       {phase === "lobby" && (
         <>
@@ -101,7 +138,7 @@ export default function Create() {
               </div>
               <button
                 className="primary-button bg-primary"
-                onClick={() => startRound(packId)}
+                onClick={() => startRound(packId, settings)}
               >
                 Start Game
               </button>
@@ -125,6 +162,7 @@ export default function Create() {
           onGuess={() => setPhase("spyGuess")}
           locations={pack.locations}
           firstPlayer={round?.firstPlayer || ""}
+          goal={goal}
         />
       )}
 
@@ -151,13 +189,14 @@ export default function Create() {
 
       {phase === "reveal" && reveal && (
         <RevealScreen
-          outcome={reveal.outcome}
+          result={reveal.result}
+          youWon={youWon}
           spyName={reveal.spy || name}
-          isSpy={isSpy}
+          accused={reveal.accused}
           location={reveal.location}
           onPlayAgain={() => {
             resetRound();
-            startRound(packId);
+            startRound(packId, settings);
           }}
           onBackToLobby={() => {
             resetRound();

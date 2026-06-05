@@ -57,7 +57,7 @@ export const handler = async (event: any) => {
 
   // Player started the round → deal each player their own private secret.
   if (incoming?.type === "start") {
-    await dealStart(lobbyCode, incoming.packId);
+    await dealStart(lobbyCode, incoming.packId, incoming.settings);
     return { statusCode: 200 };
   }
 

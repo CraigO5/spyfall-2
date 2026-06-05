@@ -12,8 +12,26 @@ export interface LobbyMessage {
   votes?: Record<string, string[]>;
   guess?: string | null;
   spy?: string;
-  outcome?: "caught" | "escaped";
+  // Optional game modes the host can enable.
+  settings?: GameSettings;
+  // Per-player secret dealt at round start.
+  secretRole?: SecretRole;
+  goal?: string;
+  allSpy?: boolean;
+  // Final verdict.
+  result?: RoundResult;
+  accused?: string | null;
+  winners?: string[];
 }
+
+export type GameSettings = {
+  allSpy?: boolean;
+  joker?: boolean;
+  doubleAgent?: boolean;
+};
+
+export type SecretRole = "spy" | "joker" | "doubleAgent" | "innocent";
+export type RoundResult = "detectives" | "spy" | "joker" | "allSpy";
 
 export interface LobbyPlayer {
   name: string;
@@ -26,6 +44,10 @@ export interface Round {
   startedAt: number;
   packId: string;
   firstPlayer: string;
+  secretRole?: SecretRole;
+  goal?: string;
+  allSpy?: boolean;
+  spy?: string; // the spy's name — only sent to the double agent
 }
 export interface Vote {
   voter: string;

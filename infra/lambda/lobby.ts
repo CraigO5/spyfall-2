@@ -17,7 +17,7 @@ const api = new ApiGatewayManagementApiClient({
 });
 
 // Everyone currently in a lobby (query the byLobby GSI).
-async function lobbyConnections(lobbyCode: string) {
+export async function lobbyConnections(lobbyCode: string) {
   const { Items = [] } = await ddb.send(
     new QueryCommand({
       TableName: process.env.TABLE_NAME,
@@ -30,7 +30,7 @@ async function lobbyConnections(lobbyCode: string) {
 }
 
 // Send a payload to a person
-function send(connectionId: string, payload: object) {
+export function send(connectionId: string, payload: object) {
   return api
     .send(
       new PostToConnectionCommand({

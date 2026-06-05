@@ -1,6 +1,14 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
-import { broadcastPlayers, broadcastSystem } from "./lobby";
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  UpdateCommand,
+} from "@aws-sdk/lib-dynamodb";
+import {
+  broadcastPlayers,
+  broadcastSystem,
+  lobbyConnections,
+} from "./lobby";
 
 // Starts a new DynamoDB client much like supabase and DynamoDBDocumentClient wraps using JS objects
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient());
@@ -22,6 +30,23 @@ export const handler = async (event: any) => {
       Item: { connectionId, lobbyCode, name, icon }, // id, name, icon, lobby code
     }),
   );
+
+  // First person in the lobby (nobody else is host yet) becomes the host.
+  // They can't be told during $connect — they'll learn it from the sync reply.
+  const others = await lobbyConnections(lobbyCode);
+  const hasHost = others.some(
+    (c) => c.isHost && c.connectionId !== connectionId,
+  );
+  if (!hasHost) {
+    await ddb.send(
+      new UpdateCommand({
+        TableName: process.env.TABLE_NAME,
+        Key: { connectionId },
+        UpdateExpression: "SET isHost = :h",
+        ExpressionAttributeValues: { ":h": true },
+      }),
+    );
+  }
 
   await broadcastPlayers(lobbyCode);
   await broadcastSystem(lobbyCode, `${name} joined the lobby`);

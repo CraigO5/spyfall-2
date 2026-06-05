@@ -48,6 +48,7 @@ export default function GameScreen({
   locations = LOCATIONS,
   firstPlayer,
   goal,
+  startedAt,
 }: {
   players: LobbyPlayer[];
   location?: string;
@@ -59,6 +60,7 @@ export default function GameScreen({
   locations?: GameLocation[];
   firstPlayer: string;
   goal?: string;
+  startedAt?: number;
 }) {
   const { name: myName } = useName();
   const [marks, setMarks] = useState<Record<string, Mark>>({});
@@ -137,7 +139,11 @@ export default function GameScreen({
       </div>
 
       {/* Timer — isolated so its per-second tick doesn't re-render the screen */}
-      <RoundTimer seconds={GAME_DURATION_SECONDS} onTimeUp={onTimeUp} />
+      <RoundTimer
+        seconds={GAME_DURATION_SECONDS}
+        onTimeUp={onTimeUp}
+        startedAt={startedAt}
+      />
 
       {/* Suspects — zip grid chips */}
       <div>

@@ -17,6 +17,8 @@ export function useLobby(code: string, name: string, icon: string) {
   const [players, setPlayers] = useState<LobbyPlayer[]>([]);
   const [round, setRound] = useState<Round | null>(null);
   const [serverPhase, setServerPhase] = useState<string | null>(null);
+  // Am I the host? Server decides and tells us in the sync reply.
+  const [isHost, setIsHost] = useState(false);
   // Server-authoritative tally: { accusedName: [voterName, ...] }
   const [votes, setVotes] = useState<Record<string, string[]>>({});
   // Name of the caught spy during the spy-guess phase (so waiters can show it).
@@ -52,6 +54,9 @@ export function useLobby(code: string, name: string, icon: string) {
         const msg = JSON.parse(e.data);
         if (msg.type === "players") {
           setPlayers(msg.players ?? []);
+        } else if (msg.type === "self") {
+          // Server told us our own status (currently just host-ness).
+          setIsHost(!!msg.isHost);
         } else if (msg.type === "start") {
           // New round — clear out the previous round's phase/votes/verdict.
           setServerPhase(null);
@@ -118,5 +123,6 @@ export function useLobby(code: string, name: string, icon: string) {
     votes,
     reveal,
     caughtSpy,
+    isHost,
   };
 }

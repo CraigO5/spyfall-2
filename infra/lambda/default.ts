@@ -15,6 +15,7 @@ import {
   castVote,
   resolveVotes,
   resolveSpyGuess,
+  send,
 } from "./lobby";
 
 // Starts a new DynamoDB client much like supabase and DynamoDBDocumentClient wraps using JS objects
@@ -52,11 +53,15 @@ export const handler = async (event: any) => {
   // to during its own $connect).
   if (incoming?.type === "sync") {
     await broadcastPlayers(lobbyCode);
+    // Privately tell this client whether it's the host.
+    await send(senderId, { type: "self", isHost: !!sender.Item?.isHost });
     return { statusCode: 200 };
   }
 
   // Player started the round → deal each player their own private secret.
+  // Only the host may start; ignore everyone else.
   if (incoming?.type === "start") {
+    if (!sender.Item?.isHost) return { statusCode: 403 };
     await dealStart(lobbyCode, incoming.packId, incoming.settings);
     return { statusCode: 200 };
   }

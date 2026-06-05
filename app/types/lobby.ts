@@ -22,6 +22,7 @@ export interface LobbyMessage {
   result?: RoundResult;
   accused?: string | null;
   winners?: string[];
+  isHost?: boolean;
 }
 
 export type GameSettings = {

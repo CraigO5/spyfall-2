@@ -3,8 +3,14 @@ import {
   DynamoDBDocumentClient,
   DeleteCommand,
   GetCommand,
+  UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { broadcastPlayers, broadcastSystem } from "./lobby";
+import {
+  broadcastPlayers,
+  broadcastSystem,
+  lobbyConnections,
+  send,
+} from "./lobby";
 
 // Starts a new DynamoDB client much like supabase and DynamoDBDocumentClient wraps using JS objects
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient());
@@ -23,6 +29,7 @@ export const handler = async (event: any) => {
   );
   const lobbyCode = got.Item?.lobbyCode;
   const name = got.Item?.name ?? "Agent";
+  const wasHost = !!got.Item?.isHost;
 
   await ddb.send(
     // Delete an item writing a {connectionId} into table TABLE_NAME
@@ -34,6 +41,23 @@ export const handler = async (event: any) => {
   );
 
   if (lobbyCode) {
+    // If the host left, promote whoever's still here and tell them.
+    if (wasHost) {
+      const remaining = await lobbyConnections(lobbyCode);
+      const next = remaining[0];
+      if (next) {
+        await ddb.send(
+          new UpdateCommand({
+            TableName: process.env.TABLE_NAME,
+            Key: { connectionId: next.connectionId },
+            UpdateExpression: "SET isHost = :h",
+            ExpressionAttributeValues: { ":h": true },
+          }),
+        );
+        await send(next.connectionId, { type: "self", isHost: true });
+      }
+    }
+
     await broadcastPlayers(lobbyCode);
     await broadcastSystem(lobbyCode, `${name} left the lobby`);
   }

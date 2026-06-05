@@ -25,13 +25,16 @@ function ClockIcon() {
 export default function RoundTimer({
   seconds,
   onTimeUp,
+  startedAt,
 }: {
   seconds: number;
   onTimeUp?: () => void;
+  startedAt?: number;
 }) {
   const { remaining, label, paused, togglePause } = useCountdown(
     seconds,
     onTimeUp,
+    startedAt,
   );
   const lowTime = remaining <= 30;
 

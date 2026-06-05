@@ -27,7 +27,6 @@ type Phase = "lobby" | "game" | "voting" | "spyGuess" | "reveal"; // These scree
 
 export default function Create() {
   const { code } = useParams<{ code: string }>();
-  const [isHost, setIsHost] = useState(true);
   const [phase, setPhase] = useState<Phase>("lobby");
   const [packId, setPackId] = useState("classic");
   const [settings, setSettings] = useState<GameSettings>({});
@@ -48,6 +47,7 @@ export default function Create() {
     votes,
     reveal,
     caughtSpy,
+    isHost,
   } = useLobby(code, name, icon);
 
   // When the server deals a round, everyone drops into the game together.
@@ -163,6 +163,7 @@ export default function Create() {
           locations={pack.locations}
           firstPlayer={round?.firstPlayer || ""}
           goal={goal}
+          startedAt={round?.startedAt}
         />
       )}
 

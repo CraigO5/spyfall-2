@@ -13,9 +13,13 @@ import {
   dealStart,
   broadcast,
   castVote,
+  getLobby,
   resolveVotes,
   resolveSpyGuess,
+  returnToLobby,
   send,
+  startPayloadFor,
+  updateLobby,
 } from "./lobby";
 
 // Starts a new DynamoDB client much like supabase and DynamoDBDocumentClient wraps using JS objects
@@ -49,12 +53,33 @@ export const handler = async (event: any) => {
     incoming = JSON.parse(message);
   } catch {}
 
-  // A just-connected client asks for the current roster (it couldn't be pushed
-  // to during its own $connect).
+  // A just-connected client asks for the current state. Beyond the roster, we
+  // hand back whatever round/voting/reveal state the lobby is in so a refresh
+  // (or a slow joiner) lands exactly where everyone else is.
   if (incoming?.type === "sync") {
     await broadcastPlayers(lobbyCode);
-    // Privately tell this client whether it's the host.
     await send(senderId, { type: "self", isHost: !!sender.Item?.isHost });
+
+    const lobby = await getLobby(lobbyCode);
+    const phase = lobby?.phase ?? "lobby";
+
+    // If a round is in progress, re-send this client their own dealt secret
+    // and bring them up to whatever phase the room is on.
+    if (phase !== "lobby" && sender.Item?.secretRole) {
+      await send(senderId, startPayloadFor(lobby!, sender.Item));
+    }
+
+    if (phase === "voting") {
+      await send(senderId, { type: "voting" });
+      if (lobby?.votes) await send(senderId, { type: "votes", votes: lobby.votes });
+    } else if (phase === "spyGuess") {
+      await send(senderId, { type: "spyTurn", spy: lobby?.caughtSpy ?? "" });
+    } else if (phase === "reveal" && lobby?.reveal) {
+      await send(senderId, { type: "reveal", ...lobby.reveal });
+    } else if (phase === "lobby") {
+      // Make sure a stale client that thinks it's mid-round resets to lobby.
+      await send(senderId, { type: "lobby" });
+    }
     return { statusCode: 200 };
   }
 
@@ -68,6 +93,7 @@ export const handler = async (event: any) => {
 
   // Player skipped to the vote/timer ran out
   if (incoming?.type === "voting") {
+    await updateLobby(lobbyCode, { phase: "voting" });
     await broadcast(lobbyCode, { type: "voting" });
     return { statusCode: 200 };
   }
@@ -90,6 +116,13 @@ export const handler = async (event: any) => {
     return { statusCode: 200 };
   }
 
+  // Host pulled the room back to the lobby screen after a reveal.
+  if (incoming?.type === "backToLobby") {
+    if (!sender.Item?.isHost) return { statusCode: 403 };
+    await returnToLobby(lobbyCode);
+    return { statusCode: 200 };
+  }
+
   //   Query the GSI for everyone in the lobby
   const result = await ddb.send(
     new QueryCommand({
@@ -100,7 +133,10 @@ export const handler = async (event: any) => {
       ExpressionAttributeValues: { ":code": lobbyCode }, // :code is a placeholder
     }),
   );
-  const Items = result.Items ?? []; // use [] if Items is missing
+  // Drop the lobby header row — only players should receive chat etc.
+  const Items = (result.Items ?? []).filter(
+    (i) => !(i.connectionId as string).startsWith("LOBBY#"),
+  );
 
   //   Push the message to each player at once (async)
   await Promise.all(

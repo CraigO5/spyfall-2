@@ -9,6 +9,7 @@ import {
   broadcastPlayers,
   broadcastSystem,
   lobbyConnections,
+  maybeResolveVotesAfterLeave,
   send,
 } from "./lobby";
 
@@ -27,9 +28,12 @@ export const handler = async (event: any) => {
       Key: { connectionId },
     }),
   );
-  const lobbyCode = got.Item?.lobbyCode;
-  const name = got.Item?.name ?? "Agent";
-  const wasHost = !!got.Item?.isHost;
+  // If a fast reconnect already replaced this row, nothing to do.
+  if (!got.Item) return { statusCode: 200 };
+
+  const lobbyCode = got.Item.lobbyCode;
+  const name = got.Item.name ?? "Agent";
+  const wasHost = !!got.Item.isHost;
 
   await ddb.send(
     // Delete an item writing a {connectionId} into table TABLE_NAME
@@ -60,6 +64,8 @@ export const handler = async (event: any) => {
 
     await broadcastPlayers(lobbyCode);
     await broadcastSystem(lobbyCode, `${name} left the lobby`);
+    // If we were mid-vote, the remaining players might already be done.
+    await maybeResolveVotesAfterLeave(lobbyCode);
   }
 
   //   Confirmation status code

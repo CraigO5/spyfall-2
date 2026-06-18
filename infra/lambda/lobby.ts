@@ -1,7 +1,10 @@
-// Shared helpers for the lobby: presence, system messages, and dealing a round.
+// Shared helpers for the lobby: presence, system messages, dealing a round,
+// and persisting authoritative per-lobby state (so reconnects can resume).
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
   QueryCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
@@ -16,7 +19,15 @@ const api = new ApiGatewayManagementApiClient({
   endpoint: process.env.WS_ENDPOINT,
 });
 
-// Everyone currently in a lobby (query the byLobby GSI).
+export type Phase = "lobby" | "game" | "voting" | "spyGuess" | "reveal";
+
+// The byLobby GSI returns the lobby header row AND every player row. The
+// header has connectionId = "LOBBY#<code>"; everything else is a player.
+const headerKey = (code: string) => `LOBBY#${code}`;
+const isPlayerRow = (item: Record<string, any>) =>
+  !(item.connectionId as string).startsWith("LOBBY#");
+
+// Everyone currently in a lobby (query the byLobby GSI, drop the header row).
 export async function lobbyConnections(lobbyCode: string) {
   const { Items = [] } = await ddb.send(
     new QueryCommand({
@@ -26,10 +37,79 @@ export async function lobbyConnections(lobbyCode: string) {
       ExpressionAttributeValues: { ":code": lobbyCode },
     }),
   );
-  return Items;
+  return Items.filter(isPlayerRow);
 }
 
-// Send a payload to a person
+// Fetch the lobby header. Returns null if the lobby has never been seeded.
+export async function getLobby(lobbyCode: string) {
+  const { Item } = await ddb.send(
+    new GetCommand({
+      TableName: process.env.TABLE_NAME,
+      Key: { connectionId: headerKey(lobbyCode) },
+    }),
+  );
+  return (Item ?? null) as null | Record<string, any>;
+}
+
+// Make sure the header row exists; create it in the "lobby" phase if not.
+export async function ensureLobby(lobbyCode: string) {
+  const existing = await getLobby(lobbyCode);
+  if (existing) return existing;
+  const seed = {
+    connectionId: headerKey(lobbyCode),
+    lobbyCode,
+    kind: "lobby",
+    phase: "lobby" as Phase,
+  };
+  await ddb.send(
+    new PutCommand({
+      TableName: process.env.TABLE_NAME,
+      Item: seed,
+      // Don't clobber a header someone else just wrote.
+      ConditionExpression: "attribute_not_exists(connectionId)",
+    }),
+  ).catch(() => {});
+  return seed;
+}
+
+// Patch fields on the lobby header. Pass undefined to clear a field.
+export async function updateLobby(
+  lobbyCode: string,
+  patch: Record<string, any>,
+) {
+  const sets: string[] = [];
+  const removes: string[] = [];
+  const names: Record<string, string> = {};
+  const values: Record<string, any> = {};
+  let i = 0;
+  for (const [k, v] of Object.entries(patch)) {
+    const nameKey = `#k${i}`;
+    names[nameKey] = k;
+    if (v === undefined) {
+      removes.push(nameKey);
+    } else {
+      const valKey = `:v${i}`;
+      values[valKey] = v;
+      sets.push(`${nameKey} = ${valKey}`);
+    }
+    i++;
+  }
+  const parts: string[] = [];
+  if (sets.length) parts.push(`SET ${sets.join(", ")}`);
+  if (removes.length) parts.push(`REMOVE ${removes.join(", ")}`);
+  if (!parts.length) return;
+  await ddb.send(
+    new UpdateCommand({
+      TableName: process.env.TABLE_NAME,
+      Key: { connectionId: headerKey(lobbyCode) },
+      UpdateExpression: parts.join(" "),
+      ExpressionAttributeNames: names,
+      ...(Object.keys(values).length ? { ExpressionAttributeValues: values } : {}),
+    }),
+  );
+}
+
+// Send a payload to a person.
 export function send(connectionId: string, payload: object) {
   return api
     .send(
@@ -69,6 +149,28 @@ export async function broadcastPlayers(lobbyCode: string) {
     icon: i.icon ?? "",
   }));
   await pushTo(connections, { type: "players", players });
+}
+
+// Build the per-player `start` payload from a saved player row + lobby header.
+// Used during a fresh deal AND when a reconnecting player needs to resume.
+export function startPayloadFor(
+  lobby: Record<string, any>,
+  player: Record<string, any>,
+) {
+  const allSpy = !!lobby.allSpy;
+  const knowsLocation = player.secretRole !== "spy" && !allSpy;
+  return {
+    type: "start" as const,
+    startedAt: lobby.startedAt,
+    packId: lobby.packId ?? "classic",
+    location: knowsLocation ? lobby.location : null,
+    role: player.role,
+    secretRole: player.secretRole,
+    goal: player.goal,
+    allSpy,
+    firstPlayer: lobby.firstPlayer,
+    spy: player.spy, // only set for double agent
+  };
 }
 
 // Optional game modes the host can enable.
@@ -117,7 +219,8 @@ function describeRole(role: SecretRole, roleName: string) {
 }
 
 // Deal a new round: pick a location, assign secret roles (honoring the host's
-// enabled modes), and push each player ONLY their own secret.
+// enabled modes), and push each player ONLY their own secret. Also persists the
+// round on the lobby header so a reconnect can recover state.
 export async function dealStart(
   lobbyCode: string,
   packId?: string,
@@ -148,26 +251,48 @@ export async function dealStart(
 
   const spyName = players[roles.indexOf("spy")]?.name ?? "";
 
+  // Persist the round shape on the lobby header so reconnects can resume.
+  await updateLobby(lobbyCode, {
+    phase: "game",
+    packId: pack.id,
+    startedAt,
+    location: allSpyRound ? null : location.name,
+    firstPlayer,
+    allSpy: allSpyRound,
+    settings,
+    // Clear stale verdict-related state from any prior round.
+    caughtSpy: undefined,
+    reveal: undefined,
+  });
+
   await Promise.all(
     players.map(async (player, i) => {
       const role = roles[i];
-      const knowsLocation = role !== "spy"; // only spies are kept in the dark
-      const storedLocation = allSpyRound ? null : location.name;
       const { label, goal } = describeRole(role, pick(location.roles));
+      const spyHint = role === "doubleAgent" ? spyName : undefined;
 
       // Remember the round facts server-side so we can judge the vote later,
-      // and wipe last round's vote. (#loc because "location" is reserved.)
+      // re-hydrate a reconnect, and wipe last round's vote.
+      // (#loc because "location" is reserved.)
       await ddb.send(
         new UpdateCommand({
           TableName: process.env.TABLE_NAME,
           Key: { connectionId: player.connectionId },
           UpdateExpression:
-            "SET secretRole = :sr, isSpy = :s, #loc = :l REMOVE votedFor",
-          ExpressionAttributeNames: { "#loc": "location" },
+            spyHint !== undefined
+              ? "SET secretRole = :sr, isSpy = :s, #role = :r, goal = :g, spyName = :sp, #loc = :l REMOVE votedFor"
+              : "SET secretRole = :sr, isSpy = :s, #role = :r, goal = :g, #loc = :l REMOVE votedFor, spyName",
+          ExpressionAttributeNames: {
+            "#loc": "location",
+            "#role": "role",
+          },
           ExpressionAttributeValues: {
             ":sr": role,
             ":s": role === "spy",
-            ":l": storedLocation,
+            ":r": label,
+            ":g": goal,
+            ":l": role === "spy" || allSpyRound ? null : location.name,
+            ...(spyHint !== undefined ? { ":sp": spyHint } : {}),
           },
         }),
       );
@@ -177,14 +302,14 @@ export async function dealStart(
         type: "start",
         startedAt,
         packId: pack.id,
-        location: knowsLocation ? location.name : null,
+        location: role === "spy" || allSpyRound ? null : location.name,
         role: label,
         secretRole: role,
         goal,
         allSpy: allSpyRound,
         firstPlayer,
         // The double agent privately learns who they're protecting.
-        spy: role === "doubleAgent" ? spyName : undefined,
+        spy: spyHint,
       });
     }),
   );
@@ -211,45 +336,54 @@ function mostAccused(connections: Record<string, any>[]) {
 // play. `winners` lists the names who won, so each client can check itself.
 export async function resolveVotes(lobbyCode: string) {
   const connections = await lobbyConnections(lobbyCode);
-  const accused = mostAccused(connections);
+  // Only this round's participants vote/get judged. (A late-joiner won't have
+  // a secretRole — they shouldn't be able to stall or skew the vote.)
+  const roundConnections = connections.filter((c) => c.secretRole);
+  const accused = mostAccused(roundConnections);
 
-  const spy = connections.find((c) => c.secretRole === "spy");
+  const spy = roundConnections.find((c) => c.secretRole === "spy");
   const spyName = spy?.name ?? "";
   const location = spy?.location ?? null;
 
   // ALL-SPY round: there are no innocents — everyone's in on it, everyone wins.
   const allSpy =
-    connections.length > 0 && connections.every((c) => c.secretRole === "spy");
+    roundConnections.length > 0 &&
+    roundConnections.every((c) => c.secretRole === "spy");
   if (allSpy) {
-    await broadcast(lobbyCode, {
-      type: "reveal",
+    const reveal = {
       result: "allSpy",
       spy: "",
       accused,
       location: null,
-      winners: connections.map((c) => c.name),
-    });
+      winners: roundConnections.map((c) => c.name),
+    };
+    await updateLobby(lobbyCode, { phase: "reveal", reveal });
+    await broadcast(lobbyCode, { type: "reveal", ...reveal });
     return;
   }
 
-  const joker = connections.find((c) => c.secretRole === "joker");
-  const doubleAgent = connections.find((c) => c.secretRole === "doubleAgent");
+  const joker = roundConnections.find((c) => c.secretRole === "joker");
+  const doubleAgent = roundConnections.find(
+    (c) => c.secretRole === "doubleAgent",
+  );
 
   // The Joker got themselves voted out → Joker wins alone.
   if (joker && accused === joker.name) {
-    await broadcast(lobbyCode, {
-      type: "reveal",
+    const reveal = {
       result: "joker",
       spy: spyName,
       accused,
       location,
       winners: [joker.name],
-    });
+    };
+    await updateLobby(lobbyCode, { phase: "reveal", reveal });
+    await broadcast(lobbyCode, { type: "reveal", ...reveal });
     return;
   }
 
   // Spy got voted out → they get one chance to guess the location.
   if (accused && accused === spyName) {
+    await updateLobby(lobbyCode, { phase: "spyGuess", caughtSpy: spyName });
     await broadcast(lobbyCode, { type: "spyTurn", spy: spyName });
     return;
   }
@@ -258,46 +392,60 @@ export async function resolveVotes(lobbyCode: string) {
   // they weren't the one voted out.
   const winners = [spyName];
   if (doubleAgent && accused !== doubleAgent.name) winners.push(doubleAgent.name);
-  await broadcast(lobbyCode, {
-    type: "reveal",
-    result: "spy",
-    spy: spyName,
-    accused,
-    location,
-    winners,
-  });
+  const reveal = { result: "spy", spy: spyName, accused, location, winners };
+  await updateLobby(lobbyCode, { phase: "reveal", reveal });
+  await broadcast(lobbyCode, { type: "reveal", ...reveal });
 }
 
 // The caught spy guessed a location: right = spy steals the win, wrong = the
 // innocents (detectives) win. A caught spy means the double agent already lost.
 export async function resolveSpyGuess(lobbyCode: string, guess: string) {
   const connections = await lobbyConnections(lobbyCode);
-  const spy = connections.find((c) => c.secretRole === "spy");
+  const roundConnections = connections.filter((c) => c.secretRole);
+  const spy = roundConnections.find((c) => c.secretRole === "spy");
   const spyName = spy?.name ?? "";
   const location = spy?.location ?? null;
 
+  let reveal;
   if (guess === location) {
-    await broadcast(lobbyCode, {
-      type: "reveal",
+    reveal = {
       result: "spy",
       spy: spyName,
       accused: spyName,
       location,
       winners: [spyName],
-    });
+    };
   } else {
-    const detectives = connections
+    const detectives = roundConnections
       .filter((c) => c.secretRole === "innocent")
       .map((c) => c.name);
-    await broadcast(lobbyCode, {
-      type: "reveal",
+    reveal = {
       result: "detectives",
       spy: spyName,
       accused: spyName,
       location,
       winners: detectives,
-    });
+    };
   }
+  await updateLobby(lobbyCode, { phase: "reveal", reveal });
+  await broadcast(lobbyCode, { type: "reveal", ...reveal });
+}
+
+// True if every active round participant has cast a vote (so we can resolve).
+function allVoted(connections: Record<string, any>[]) {
+  const participants = connections.filter((c) => c.secretRole);
+  return participants.length > 0 && participants.every((c) => c.votedFor);
+}
+
+// Build the broadcast tally from current connection rows.
+function tallyVotes(connections: Record<string, any>[]) {
+  const votes: Record<string, string[]> = {};
+  connections.forEach((i) => {
+    if (!i.votedFor) return;
+    if (i.votedFor in votes) votes[i.votedFor].push(i.name);
+    else votes[i.votedFor] = [i.name];
+  });
+  return votes;
 }
 
 export async function castVote(
@@ -322,20 +470,57 @@ export async function castVote(
     if (c.connectionId === voterId) c.votedFor = target;
   });
 
-  const votes: Record<string, string[]> = {}; // Record who voted for who
-
-  connections.forEach((i) => {
-    if (!i.votedFor) return;
-
-    if (i.votedFor in votes) {
-      votes[i.votedFor].push(i.name);
-    } else {
-      votes[i.votedFor] = [i.name];
-    }
-  });
+  const votes = tallyVotes(connections);
+  await updateLobby(lobbyCode, { votes });
   await pushTo(connections, { type: "votes", votes });
 
   // Once every player has voted, end the round automatically.
-  const allVoted = connections.every((c) => c.votedFor);
-  if (allVoted) await resolveVotes(lobbyCode);
+  if (allVoted(connections)) await resolveVotes(lobbyCode);
+}
+
+// Called when a player leaves while voting is in progress — the remaining
+// players might already satisfy "everyone voted", so re-evaluate.
+export async function maybeResolveVotesAfterLeave(lobbyCode: string) {
+  const lobby = await getLobby(lobbyCode);
+  if (lobby?.phase !== "voting") return;
+  const connections = await lobbyConnections(lobbyCode);
+  // Refresh the broadcast tally in case the leaver had voted.
+  const votes = tallyVotes(connections);
+  await updateLobby(lobbyCode, { votes });
+  await pushTo(connections, { type: "votes", votes });
+  if (allVoted(connections)) await resolveVotes(lobbyCode);
+}
+
+// Host reset → everyone back to the lobby screen and clear round state.
+export async function returnToLobby(lobbyCode: string) {
+  await updateLobby(lobbyCode, {
+    phase: "lobby",
+    startedAt: undefined,
+    packId: undefined,
+    location: undefined,
+    firstPlayer: undefined,
+    allSpy: undefined,
+    settings: undefined,
+    votes: undefined,
+    caughtSpy: undefined,
+    reveal: undefined,
+  });
+  // Wipe each player's round-private data so a stale role can't leak.
+  const players = await lobbyConnections(lobbyCode);
+  await Promise.all(
+    players.map((p) =>
+      ddb
+        .send(
+          new UpdateCommand({
+            TableName: process.env.TABLE_NAME,
+            Key: { connectionId: p.connectionId },
+            UpdateExpression:
+              "REMOVE secretRole, isSpy, #role, goal, #loc, spyName, votedFor",
+            ExpressionAttributeNames: { "#loc": "location", "#role": "role" },
+          }),
+        )
+        .catch(() => {}),
+    ),
+  );
+  await broadcast(lobbyCode, { type: "lobby" });
 }
